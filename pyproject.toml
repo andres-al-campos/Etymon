@@ -1,0 +1,8 @@
+[project]
+name = "etymon"
+version = "0.1.0"
+description = "The true root hiding beneath the surface — a Codenames solver built on GloVe embeddings"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+]

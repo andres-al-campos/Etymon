@@ -1,0 +1,19 @@
+# Built graph data
+graph_data/
+
+# GloVe embeddings (large files)
+glove.*.txt
+glove.*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# uv
+uv.lock
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etymon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --bg-card: #131318;
+    --bg-input: #1a1a22;
+    --bg-hover: #1e1e28;
+    --border: #2a2a35;
+    --border-focus: #5b5bd6;
+    --text: #e8e8ed;
+    --text-dim: #8888a0;
+    --text-muted: #55556a;
+    --accent: #7c7cff;
+    --accent-dim: #5b5bd6;
+    --green: #3dd68c;
+    --green-dim: #1a3a2a;
+    --red: #ff6b6b;
+    --red-dim: #3a1a1a;
+    --amber: #f5a623;
+    --amber-dim: #3a2a10;
+    --teal: #3dd6c8;
+    --tag-target-bg: #1a1a3a;
+    --tag-target-text: #9b9bff;
+    --tag-avoid-bg: #3a1a1a;
+    --tag-avoid-text: #ff9b9b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .container {
+    max-width: 840px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 32px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .input-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+  }
+
+  .input-group { flex: 1; }
+
+  .input-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .word-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 40px;
+    cursor: text;
+    transition: border-color 0.15s;
+  }
+
+  .word-input-wrap:focus-within { border-color: var(--border-focus); }
+  .word-input-wrap.avoid:focus-within { border-color: var(--red); }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .tag.target { background: var(--tag-target-bg); color: var(--tag-target-text); }
+  .tag.avoid { background: var(--tag-avoid-bg); color: var(--tag-avoid-text); }
+
+  .tag .remove {
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 14px;
+    line-height: 1;
+    transition: opacity 0.1s;
+  }
+
+  .tag .remove:hover { opacity: 1; }
+
+  .tag-input {
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    min-width: 80px;
+    flex: 1;
+  }
+
+  .tag-input::placeholder { color: var(--text-muted); }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .search-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .search-btn:hover { background: var(--accent-dim); color: var(--text); }
+  .search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .search-btn.loading {
+    position: relative;
+    color: transparent;
+  }
+
+  .search-btn.loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--bg);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .status.error { color: var(--red); }
+
+  .results-section { margin-top: 16px; }
+
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+
+  .results-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+
+  .results-meta {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+  }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+
+  .result-card:hover { border-color: var(--accent-dim); }
+
+  .result-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .result-word {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--green);
+  }
+
+  .result-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .score-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .result-paths {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .path-line {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .path-arrow { color: var(--text-muted); }
+  .path-word { color: var(--text); }
+  .path-word.target { color: var(--tag-target-text); }
+  .path-word.clue { color: var(--green); }
+
+  .method-badge {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .method-badge.intersection { background: var(--green-dim); color: var(--green); }
+  .method-badge.traversal { background: var(--amber-dim); color: var(--amber); }
+
+  .explorer-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+
+  .explorer-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .explorer-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .explorer-input {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .explorer-input:focus { border-color: var(--border-focus); }
+
+  .explorer-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-hover);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .explorer-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
+  .neighbor-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .neighbor-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.1s;
+    border: 1px solid transparent;
+  }
+
+  .neighbor-tag:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
+  .neighbor-score {
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-left: 2px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .empty-state kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1><span>&#x2234;</span> etymon</h1>
+    <div class="subtitle">the true root hiding beneath the surface — a codenames solver</div>
+  </header>
+
+  <div class="input-section">
+    <div class="input-row">
+      <div class="input-group">
+        <div class="input-label">Target words (your team's words)</div>
+        <div class="word-input-wrap" id="target-wrap" onclick="document.getElementById('target-input').focus()">
+          <input type="text" class="tag-input" id="target-input"
+                 placeholder="Type a word and press Enter..."
+                 onkeydown="handleTagInput(event, 'target')">
+        </div>
+      </div>
+      <div class="input-group">
+        <div class="input-label">Avoid words (opponent / assassin)</div>
+        <div class="word-input-wrap avoid" id="avoid-wrap" onclick="document.getElementById('avoid-input').focus()">
+          <input type="text" class="tag-input" id="avoid-input"
+                 placeholder="Optional..."
+                 onkeydown="handleTagInput(event, 'avoid')">
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="search-btn" id="search-btn" onclick="runSearch()">find clues</button>
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <div class="results-section" id="results-section" style="display:none">
+    <div class="results-header">
+      <span class="results-title" id="results-title"></span>
+      <span class="results-meta" id="results-meta"></span>
+    </div>
+    <div id="results-list"></div>
+  </div>
+
+  <div class="empty-state" id="empty-state">
+    Enter 2 or more target words and hit <kbd>find clues</kbd><br>
+    Etymon will find the hidden root that connects them.
+  </div>
+
+  <div class="explorer-section">
+    <div class="explorer-title">word explorer — browse the graph</div>
+    <div class="explorer-input-row">
+      <input type="text" class="explorer-input" id="explorer-input"
+             placeholder="Type a word to see its neighbors..."
+             onkeydown="if(event.key==='Enter')exploreWord()">
+      <button class="explorer-btn" onclick="exploreWord()">explore</button>
+    </div>
+    <div id="explorer-results"></div>
+  </div>
+</div>
+
+<script>
+  const tags = { target: [], avoid: [] };
+
+  function handleTagInput(e, type) {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+      e.preventDefault();
+      const input = e.target;
+      const word = input.value.trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (word && !tags[type].includes(word)) {
+        tags[type].push(word);
+        renderTags(type);
+      }
+      input.value = '';
+    }
+    if (e.key === 'Backspace' && e.target.value === '' && tags[type].length) {
+      tags[type].pop();
+      renderTags(type);
+    }
+  }
+
+  function removeTag(type, idx) {
+    tags[type].splice(idx, 1);
+    renderTags(type);
+  }
+
+  function renderTags(type) {
+    const wrap = document.getElementById(`${type}-wrap`);
+    const input = document.getElementById(`${type}-input`);
+    wrap.querySelectorAll('.tag').forEach(t => t.remove());
+    tags[type].forEach((word, i) => {
+      const tag = document.createElement('span');
+      tag.className = `tag ${type}`;
+      tag.innerHTML = `${word}<span class="remove" onclick="removeTag('${type}', ${i})">×</span>`;
+      wrap.insertBefore(tag, input);
+    });
+  }
+
+  async function runSearch() {
+    if (tags.target.length < 2) {
+      setStatus('Need at least 2 target words', true);
+      return;
+    }
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+    setStatus('Searching...');
+    try {
+      const params = new URLSearchParams();
+      params.set('targets', tags.target.join(','));
+      if (tags.avoid.length) params.set('avoid', tags.avoid.join(','));
+      const res = await fetch(`/api/search?${params}`);
+      const data = await res.json();
+      if (data.error) { setStatus(data.error, true); return; }
+      renderResults(data);
+    } catch (err) {
+      setStatus(`Connection error: ${err.message}`, true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = isError ? 'status error' : 'status';
+  }
+
+  function renderResults(data) {
+    const section = document.getElementById('results-section');
+    const list = document.getElementById('results-list');
+    const empty = document.getElementById('empty-state');
+    if (!data.results.length) {
+      section.style.display = 'none';
+      empty.style.display = 'block';
+      empty.innerHTML = `No connections found for <strong>${data.targets.join(' + ')}</strong>.<br>Try different words or a smaller set.`;
+      setStatus(`${data.method} — ${data.elapsed_ms}ms — no results`);
+      return;
+    }
+    empty.style.display = 'none';
+    section.style.display = 'block';
+    document.getElementById('results-title').innerHTML =
+      `Clues for <strong>${data.targets.join(' + ')}</strong>`;
+    document.getElementById('results-meta').innerHTML =
+      `<span class="method-badge ${data.method}">${data.method}</span> ${data.elapsed_ms}ms`;
+    setStatus('');
+    const maxScore = data.results[0].score || 1;
+    list.innerHTML = data.results.map((r, i) => {
+      const score = r.score || 0;
+      const pct = (score / maxScore * 100).toFixed(0);
+      let pathsHtml = '';
+      if (r.paths) {
+        pathsHtml = '<div class="result-paths">' +
+          Object.entries(r.paths).map(([target, path]) =>
+            '<div class="path-line">' +
+            path.map((w, j) => {
+              let cls = 'path-word';
+              if (j === 0) cls += ' target';
+              if (j === path.length - 1) cls += ' clue';
+              return `<span class="${cls}">${w}</span>` +
+                (j < path.length - 1 ? '<span class="path-arrow">→</span>' : '');
+            }).join('') +
+            '</div>'
+          ).join('') +
+          '</div>';
+      }
+      return `
+        <div class="result-card">
+          <div class="result-top">
+            <span class="result-word">${r.word}</span>
+            <span class="result-score">${score.toFixed(3)}</span>
+          </div>
+          <div class="score-bar"><div class="score-fill" style="width:${pct}%"></div></div>
+          ${pathsHtml}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function exploreWord(word) {
+    word = word || document.getElementById('explorer-input').value.trim().toLowerCase();
+    if (!word) return;
+    document.getElementById('explorer-input').value = word;
+    try {
+      const res = await fetch(`/api/neighbors?word=${encodeURIComponent(word)}&n=50`);
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('explorer-results').innerHTML =
+          `<span style="color:var(--red);font-size:12px">${data.error}</span>`;
+        return;
+      }
+      document.getElementById('explorer-results').innerHTML =
+        '<div class="neighbor-grid">' +
+        data.neighbors.map(n =>
+          `<span class="neighbor-tag" onclick="exploreWord('${n.word}')" title="similarity: ${n.score}">` +
+          `${n.word}<span class="neighbor-score">${n.score.toFixed(2)}</span></span>`
+        ).join('') +
+        '</div>';
+    } catch (err) {
+      document.getElementById('explorer-results').innerHTML =
+        `<span style="color:var(--red);font-size:12px">Connection error</span>`;
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runSearch();
+  });
+</script>
+
+</body>
+</html>
