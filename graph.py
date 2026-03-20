@@ -182,7 +182,8 @@ class CodenamesGraph:
         self.vocab_size = len(words)
 
         # Precompute norms for fast cosine similarity
-        self.norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True)
+        # Shape: (vocab_size,) — flat, not (vocab_size, 1)
+        self.norms = np.linalg.norm(self.embeddings, axis=1)
         # Avoid division by zero
         self.norms = np.maximum(self.norms, NORM_EPSILON)
 
@@ -207,7 +208,7 @@ class CodenamesGraph:
         start = time.time()
 
         # Normalized embeddings for cosine similarity via dot product
-        normed = self.embeddings / self.norms  # (vocab_size, 300)
+        normed = self.embeddings / self.norms[:, np.newaxis]  # (vocab_size, 300)
 
         total_batches = (self.vocab_size + batch_size - 1) // batch_size
 
@@ -300,7 +301,8 @@ class CodenamesGraph:
         self.embeddings = np.load(os.path.join(path, "embeddings.npy"))
         self.vocab_size = len(self.words)
 
-        self.norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True)
+        # Shape: (vocab_size,) — flat
+        self.norms = np.linalg.norm(self.embeddings, axis=1)
         self.norms = np.maximum(self.norms, NORM_EPSILON)
 
         with open(os.path.join(path, "meta.json"), "r") as f:
@@ -669,7 +671,7 @@ if __name__ == "__main__":
     nb_cmd = sub.add_parser("neighbors", help="Show neighbors of a word")
     nb_cmd.add_argument("word", help="Word to explore")
     nb_cmd.add_argument("--graph", default=DEFAULT_GRAPH_DIR, help="Graph directory")
-    nb_cmd.add_argument("--n", type=int, default=30, help="Number of neighbors")
+    nb_cmd.add_argument("--n", type=int, default=50, help="Number of neighbors")
 
     args = parser.parse_args()
 
