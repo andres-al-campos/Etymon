@@ -4,7 +4,7 @@
 
 A word association engine for Codenames, built on GloVe embeddings. Given 2+ board words, finds the clue word that connects them all — the *etymon*, the hidden link.
 
-Uses set intersection for easy pairs and best-first graph traversal for harder ones.
+Runs two methods in parallel — fast set intersection and deeper best-first graph traversal — then merges and ranks every candidate by its strongest connection.
 
 ## Quick Start
 
@@ -51,17 +51,22 @@ python graph.py build ~/downloads/glove.6B.300d.txt
                    │ query time
                    ▼
 ┌────────────────────────────────────────────────────────┐
-│  Search engine                                         │
+│  Search engine — runs BOTH methods, then merges        │
 │                                                        │
-│  1. Try set intersection (fast, ~1ms)                  │
+│  A. Set intersection (fast, ~1ms)                      │
 │     neighbors(word_A) ∩ neighbors(word_B)              │
 │     Progressive widening: top-50 → top-100 → top-150  │
 │                                                        │
-│  2. If empty, fall back to best-first traversal        │
-│     Uses embedding similarity as search heuristic      │
-│     Depth limit: 2 (optionally 3 for high scores)     │
-│     Node budget: 500 max explored                      │
+│  B. Best-first traversal (deep)                        │
+│     Walks the graph from each target independently,    │
+│     using embedding similarity as heuristic, then      │
+│     intersects the reachable sets                      │
+│     Depth limit: 2     Node budget: 500 max explored   │
 │     Similarity floor: 0.05 minimum                     │
+│                                                        │
+│  → Candidates from both are merged and ranked by       │
+│    strongest connection (weakest-link score). The      │
+│    best clue wins regardless of which method found it. │
 └────────────────────────────────────────────────────────┘
 ```
 

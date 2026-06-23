@@ -9,8 +9,8 @@ best-first search to find clue words that connect target board words.
 Architecture:
   - Load GloVe embeddings (top N most common English words)
   - For each word, pre-compute top-K nearest neighbors by cosine similarity
-  - At query time, use set intersection for easy pairs
-  - Fall back to best-first graph traversal for hard pairs
+  - At query time, run BOTH set intersection and best-first traversal
+  - Merge and rank all candidates by strongest connection
 """
 
 import numpy as np
@@ -125,11 +125,11 @@ class CodenamesGraph:
     """
 
     def __init__(self):
-        self.words: list[str] = []           # index → word
-        self.word_to_idx: dict[str, int] = {}  # word → index
-        self.embeddings: np.ndarray = None     # (vocab_size, 300)
-        self.norms: np.ndarray = None          # (vocab_size,) precomputed norms
-        self.neighbors: dict[int, list[tuple[int, float]]] = {}  # idx → [(idx, score), ...]
+        self.words: list[str] = []
+        self.word_to_idx: dict[str, int] = {}
+        self.embeddings: np.ndarray = None
+        self.norms: np.ndarray = None
+        self.neighbors: dict[int, list[tuple[int, float]]] = {}
         self.vocab_size: int = 0
         self.top_k: int = DEFAULT_TOP_K
 
@@ -141,10 +141,6 @@ class CodenamesGraph:
 
         GloVe files are pre-sorted by frequency, so loading the first
         max_words lines gives you the most common English words.
-
-        Args:
-            glove_path: Path to glove.6B.300d.txt (or similar)
-            max_words: How many words to load (top N by frequency)
         """
         print(f"Loading GloVe embeddings (top {max_words:,} words)...")
         start = time.time()
@@ -160,8 +156,6 @@ class CodenamesGraph:
                 parts = line.rstrip().split(" ")
                 word = parts[0]
 
-                # Skip words with non-alpha characters (punctuation, numbers, etc.)
-                # Keep only clean words that could be Codenames clues
                 if not word.isalpha() or len(word) < MIN_WORD_LENGTH:
                     continue
 
@@ -181,10 +175,8 @@ class CodenamesGraph:
         self.embeddings = np.array(vectors, dtype=np.float32)
         self.vocab_size = len(words)
 
-        # Precompute norms for fast cosine similarity
-        # Shape: (vocab_size,) — flat, not (vocab_size, 1)
+        # Precompute norms — shape: (vocab_size,) flat
         self.norms = np.linalg.norm(self.embeddings, axis=1)
-        # Avoid division by zero
         self.norms = np.maximum(self.norms, NORM_EPSILON)
 
         elapsed = time.time() - start
@@ -195,44 +187,30 @@ class CodenamesGraph:
     def build_neighbor_graph(self, top_k: int = DEFAULT_TOP_K, batch_size: int = DEFAULT_BATCH_SIZE):
         """
         Pre-compute top-K nearest neighbors for every word.
-
-        Processes in batches to avoid memory issues with the full
-        similarity matrix (50k × 50k = 10 billion floats won't fit).
-
-        Args:
-            top_k: Number of neighbors per word
-            batch_size: Words to process per batch
+        Processes in batches to avoid memory issues.
         """
         self.top_k = top_k
         print(f"Building neighbor graph (top {top_k} per word)...")
         start = time.time()
 
-        # Normalized embeddings for cosine similarity via dot product
-        normed = self.embeddings / self.norms[:, np.newaxis]  # (vocab_size, 300)
-
+        normed = self.embeddings / self.norms[:, np.newaxis]
         total_batches = (self.vocab_size + batch_size - 1) // batch_size
 
         for batch_idx in range(total_batches):
             batch_start = batch_idx * batch_size
             batch_end = min(batch_start + batch_size, self.vocab_size)
-            batch = normed[batch_start:batch_end]  # (batch_size, 300)
+            batch = normed[batch_start:batch_end]
 
-            # Cosine similarity: batch against entire vocabulary
-            sims = batch @ normed.T  # (batch_size, vocab_size)
+            sims = batch @ normed.T
 
             for i in range(batch_end - batch_start):
                 word_idx = batch_start + i
                 row = sims[i]
-
-                # Zero out self-similarity
                 row[word_idx] = -1.0
 
-                # Get top-K indices
-                # Using argpartition for O(n) instead of full sort O(n log n)
                 top_indices = np.argpartition(row, -top_k)[-top_k:]
                 top_scores = row[top_indices]
 
-                # Sort the top-K by score (descending)
                 sorted_order = np.argsort(-top_scores)
                 top_indices = top_indices[sorted_order]
                 top_scores = top_scores[sorted_order]
@@ -256,15 +234,11 @@ class CodenamesGraph:
         print(f"Saving graph to {path}...")
         os.makedirs(path, exist_ok=True)
 
-        # Save word list
         with open(os.path.join(path, "words.json"), "w") as f:
             json.dump(self.words, f)
 
-        # Save embeddings as numpy binary
         np.save(os.path.join(path, "embeddings.npy"), self.embeddings)
 
-        # Save neighbor lists as compact binary
-        # Format: for each word, top_k pairs of (index: int32, score: float32)
         n_entries = self.vocab_size * self.top_k
         indices = np.zeros(n_entries, dtype=np.int32)
         scores = np.zeros(n_entries, dtype=np.float32)
@@ -278,7 +252,6 @@ class CodenamesGraph:
         np.save(os.path.join(path, "neighbor_indices.npy"), indices)
         np.save(os.path.join(path, "neighbor_scores.npy"), scores)
 
-        # Save metadata
         meta = {"vocab_size": self.vocab_size, "top_k": self.top_k}
         with open(os.path.join(path, "meta.json"), "w") as f:
             json.dump(meta, f)
@@ -301,7 +274,6 @@ class CodenamesGraph:
         self.embeddings = np.load(os.path.join(path, "embeddings.npy"))
         self.vocab_size = len(self.words)
 
-        # Shape: (vocab_size,) — flat
         self.norms = np.linalg.norm(self.embeddings, axis=1)
         self.norms = np.maximum(self.norms, NORM_EPSILON)
 
@@ -318,7 +290,7 @@ class CodenamesGraph:
             self.neighbors[word_idx] = [
                 (int(indices[offset + j]), float(scores_arr[offset + j]))
                 for j in range(self.top_k)
-                if scores_arr[offset + j] > 0  # skip padding
+                if scores_arr[offset + j] > 0
             ]
 
         elapsed = time.time() - start
@@ -364,21 +336,9 @@ class CodenamesGraph:
     ) -> list[tuple[str, float]]:
         """
         Find clue words by intersecting neighbor lists.
-
-        For each target word, get its top-N neighbors. Intersect those sets.
-        Rank results by minimum similarity across all target words
-        (the weakest link determines clue quality).
-
-        Uses progressive widening: starts with top-50, widens to top-N
-        if intersection is too small.
-
-        Args:
-            target_words: Board words you want to connect (2-4)
-            avoid_words: Opponent's words to avoid (clue shouldn't be near these)
-            top_n: Maximum neighbor list size to search
-            result_limit: How many results to return
+        Uses progressive widening: starts with top-50, widens to top-N.
+        Scores by minimum similarity across all targets (weakest link).
         """
-        # Validate inputs
         target_indices = []
         for w in target_words:
             w_lower = w.lower()
@@ -397,17 +357,14 @@ class CodenamesGraph:
                 if w_lower in self.word_to_idx:
                     avoid_indices.add(self.word_to_idx[w_lower])
 
-        # Words that can't be clues (board words themselves)
         excluded = set(target_indices) | avoid_indices
 
-        # Progressive widening: try small neighbor lists first, then top_n
         widths = INTERSECTION_WIDTHS + [top_n]
         candidates = []
 
         for width in widths:
-            # Get neighbor sets for each target word
             neighbor_sets = []
-            neighbor_scores = {}  # (word_idx, target_idx) → score
+            neighbor_scores = {}
 
             for tidx in target_indices:
                 neighbors = self.neighbors.get(tidx, [])[:width]
@@ -418,27 +375,22 @@ class CodenamesGraph:
                         neighbor_scores[(nidx, tidx)] = nscore
                 neighbor_sets.append(nset)
 
-            # Intersect all neighbor sets
             intersection = neighbor_sets[0]
             for ns in neighbor_sets[1:]:
                 intersection = intersection & ns
 
             if len(intersection) >= INTERSECTION_MIN_CANDIDATES:
-                # Enough candidates, score them
                 for idx in intersection:
-                    # Score = minimum similarity across all targets (weakest link)
                     min_score = min(
                         neighbor_scores.get((idx, tidx), 0.0)
                         for tidx in target_indices
                     )
                     candidates.append((idx, min_score))
                 break
-            # else: widen and try again
 
         if not candidates:
             return []
 
-        # Sort by score descending, return top results
         candidates.sort(key=lambda x: -x[1])
         return [
             (self.words[idx], score)
@@ -459,24 +411,9 @@ class CodenamesGraph:
     ) -> list[dict]:
         """
         Find clue words via best-first graph traversal.
-
-        Used as a fallback when set intersection returns nothing.
-        Walks the graph from each target word, using embedding similarity
-        as a heuristic to decide which branches to expand.
-
-        Args:
-            target_words: Board words to connect
-            avoid_words: Words to avoid
-            max_depth: Maximum hops from any target word
-            max_nodes: Maximum total nodes to explore (safety valve)
-            min_similarity: Don't explore nodes below this similarity
-            branch_factor: Max neighbors to expand per node
-            result_limit: How many results to return
-
-        Returns:
-            List of dicts with 'word', 'score', and 'paths' keys
+        Walks the graph from each target word independently, using
+        embedding similarity as heuristic, then intersects reachable sets.
         """
-        # Validate inputs
         target_indices = []
         target_strs = []
         for w in target_words:
@@ -496,18 +433,13 @@ class CodenamesGraph:
                     avoid_indices.add(self.word_to_idx[w_lower])
 
         excluded = set(target_indices) | avoid_indices
-
-        # For each target word, do a bounded BFS to collect reachable words
-        # reachable[target_idx] = {word_idx: (score, [path])}
         reachable = {}
 
         for ti, tidx in enumerate(target_indices):
-            reached = {}  # word_idx → (best_score, path)
+            reached = {}
             visited = set()
             nodes_explored = 0
 
-            # Priority queue: (-score, word_idx, depth, path)
-            # Negative score because heapq is a min-heap
             initial_neighbors = self.neighbors.get(tidx, [])[:branch_factor]
             heap = []
             for nidx, nscore in initial_neighbors:
@@ -523,15 +455,12 @@ class CodenamesGraph:
                 visited.add(current_idx)
                 nodes_explored += 1
 
-                # Record this word as reachable from this target
                 if current_idx not in reached or score > reached[current_idx][0]:
                     reached[current_idx] = (score, path)
 
-                # Expand neighbors if within depth limit
                 if depth < max_depth:
                     for nidx, nscore in self.neighbors.get(current_idx, [])[:branch_factor]:
                         if nidx not in visited and nidx not in excluded:
-                            # Heuristic: average of edge score and similarity to OTHER targets
                             other_sims = []
                             for oidx in target_indices:
                                 if oidx != tidx:
@@ -544,7 +473,6 @@ class CodenamesGraph:
 
             reachable[ti] = reached
 
-        # Find words reachable from ALL targets
         if not reachable:
             return []
 
@@ -552,13 +480,11 @@ class CodenamesGraph:
         for ti in range(1, len(target_indices)):
             common_words &= set(reachable[ti].keys())
 
-        # Score and return results
         results = []
         for word_idx in common_words:
             if word_idx in excluded:
                 continue
 
-            # Score = minimum reachability score across targets
             min_score = min(reachable[ti][word_idx][0] for ti in range(len(target_indices)))
             paths = {target_strs[ti]: reachable[ti][word_idx][1] for ti in range(len(target_indices))}
 
@@ -580,40 +506,62 @@ class CodenamesGraph:
         result_limit: int = DEFAULT_RESULT_LIMIT,
     ) -> dict:
         """
-        Find clue words using intersection first, traversal as fallback.
-
-        Returns a dict with:
-          - 'method': 'intersection' or 'traversal'
-          - 'results': list of (word, score) or list of dicts with paths
-          - 'targets': the input words
+        Find clue words by running BOTH intersection and traversal,
+        then merging and ranking all candidates together.
+        The strongest connection wins regardless of which method found it.
         """
         start = time.time()
 
-        # Try fast intersection first
-        results = self.find_clue_intersection(
+        # Run both methods
+        intersection_results = self.find_clue_intersection(
             target_words, avoid_words,
             top_n=self.top_k,
-            result_limit=result_limit,
+            result_limit=result_limit * 2,
         )
 
-        if results:
-            elapsed = time.time() - start
-            return {
-                "method": "intersection",
-                "results": [{"word": w, "score": s} for w, s in results],
-                "targets": target_words,
-                "elapsed_ms": round(elapsed * 1000),
+        traversal_results = self.find_clue_traversal(
+            target_words, avoid_words,
+            result_limit=result_limit * 2,
+        )
+
+        # Merge into a single dict keyed by word
+        merged = {}
+
+        for word, score in intersection_results:
+            merged[word] = {
+                "word": word,
+                "score": score,
+                "source": "intersection",
             }
 
-        # Fall back to traversal
-        results = self.find_clue_traversal(
-            target_words, avoid_words,
-            result_limit=result_limit,
-        )
+        for r in traversal_results:
+            word = r["word"]
+            if word not in merged or r["score"] > merged[word]["score"]:
+                merged[word] = {
+                    "word": word,
+                    "score": r["score"],
+                    "source": "traversal",
+                    "paths": r.get("paths"),
+                }
+            elif word in merged and "paths" not in merged[word] and r.get("paths"):
+                merged[word]["paths"] = r["paths"]
+                merged[word]["source"] = "both"
+
+        # Sort by score descending
+        results = sorted(merged.values(), key=lambda x: -x["score"])[:result_limit]
+
+        # Determine which methods contributed
+        sources = set(r["source"] for r in results)
+        if "both" in sources or ("intersection" in sources and "traversal" in sources):
+            method = "both"
+        elif "traversal" in sources:
+            method = "traversal"
+        else:
+            method = "intersection"
 
         elapsed = time.time() - start
         return {
-            "method": "traversal",
+            "method": method,
             "results": results,
             "targets": target_words,
             "elapsed_ms": round(elapsed * 1000),
@@ -627,7 +575,6 @@ def ensure_graph(graph_dir: str = DEFAULT_GRAPH_DIR,
                  top_k: int = DEFAULT_TOP_K) -> CodenamesGraph:
     """
     Load the graph if it exists, otherwise download GloVe and build it.
-
     This is the one-call entry point — handles everything automatically.
     """
     g = CodenamesGraph()
@@ -691,12 +638,11 @@ if __name__ == "__main__":
         print(f"Time: {result['elapsed_ms']}ms")
         print(f"\nResults:")
         for r in result["results"]:
-            if isinstance(r, dict) and "paths" in r:
-                print(f"  {r['word']:20s} (score: {r['score']:.3f})")
+            source_tag = f"[{r.get('source', '?')}]"
+            print(f"  {r['word']:20s} {r['score']:.3f}  {source_tag}")
+            if r.get("paths"):
                 for target, path in r["paths"].items():
                     print(f"    {target}: {' → '.join(path)}")
-            else:
-                print(f"  {r['word']:20s} (score: {r['score']:.3f})")
 
     elif args.command == "neighbors":
         g = ensure_graph(args.graph)

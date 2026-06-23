@@ -11,9 +11,6 @@ __pycache__/
 *.pyo
 .venv/
 
-# uv
-uv.lock
-
 # OS
 .DS_Store
 Thumbs.db
