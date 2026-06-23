@@ -2,7 +2,9 @@
 
 *The true root hiding beneath the surface.*
 
-A word association engine for Codenames, built on GloVe embeddings. Given 2+ board words, finds the clue word that connects them all — the *etymon*, the hidden link.
+A word-connection engine built on GloVe embeddings. Give it two or more words and it finds the word that links them all — the *etymon*, the hidden root beneath them.
+
+It was built as a Codenames clue-giver (find one word that connects your board words), but the engine is general: it works anywhere you want the strongest shared association across a set of words.
 
 Runs two methods in parallel — fast set intersection and deeper best-first graph traversal — then merges and ranks every candidate by its strongest connection.
 
