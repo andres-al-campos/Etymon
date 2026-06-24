@@ -1,10 +1,10 @@
 """
-Etymon — Codenames Solver
+Etymon — Word-Connection Engine
 
 Knowledge Graph Builder & Search Engine.
 
 Builds a dense word association graph from GloVe embeddings and provides
-best-first search to find clue words that connect target board words.
+best-first search to find words that connect a set of input words.
 
 Architecture:
   - Load GloVe embeddings (top N most common English words)
@@ -111,7 +111,7 @@ def ensure_glove(glove_path: str = GLOVE_FILE) -> str:
     return txt_path
 
 
-class CodenamesGraph:
+class WordGraph:
     """
     Dense word association graph built from GloVe embeddings.
 
@@ -572,12 +572,12 @@ class CodenamesGraph:
 
 def ensure_graph(graph_dir: str = DEFAULT_GRAPH_DIR,
                  vocab: int = DEFAULT_VOCAB_SIZE,
-                 top_k: int = DEFAULT_TOP_K) -> CodenamesGraph:
+                 top_k: int = DEFAULT_TOP_K) -> WordGraph:
     """
     Load the graph if it exists, otherwise download GloVe and build it.
     This is the one-call entry point — handles everything automatically.
     """
-    g = CodenamesGraph()
+    g = WordGraph()
 
     if os.path.exists(os.path.join(graph_dir, "meta.json")):
         g.load(graph_dir)
@@ -596,7 +596,7 @@ def ensure_graph(graph_dir: str = DEFAULT_GRAPH_DIR,
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Etymon — Codenames Solver")
+    parser = argparse.ArgumentParser(description="Etymon — Word-Connection Engine")
     sub = parser.add_subparsers(dest="command")
 
     # Build command
@@ -609,7 +609,7 @@ if __name__ == "__main__":
 
     # Search command
     search_cmd = sub.add_parser("search", help="Find clues for target words")
-    search_cmd.add_argument("targets", nargs="+", help="Target board words")
+    search_cmd.add_argument("targets", nargs="+", help="Words to connect")
     search_cmd.add_argument("--graph", default=DEFAULT_GRAPH_DIR, help="Graph directory")
     search_cmd.add_argument("--avoid", nargs="*", help="Words to avoid")
     search_cmd.add_argument("--limit", type=int, default=DEFAULT_RESULT_LIMIT, help="Max results")
@@ -624,7 +624,7 @@ if __name__ == "__main__":
 
     if args.command == "build":
         glove_path = args.glove_path or ensure_glove()
-        g = CodenamesGraph()
+        g = WordGraph()
         g.load_glove(glove_path, max_words=args.vocab)
         g.build_neighbor_graph(top_k=args.top_k)
         g.save(args.output)

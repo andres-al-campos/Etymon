@@ -4,7 +4,7 @@
 
 A word-connection engine built on GloVe embeddings. Give it two or more words and it finds the word that links them all — the *etymon*, the hidden root beneath them.
 
-It was built as a Codenames clue-giver (find one word that connects your board words), but the engine is general: it works anywhere you want the strongest shared association across a set of words.
+Give it a set of words and it surfaces the strongest shared association across all of them — useful for brainstorming, word games, finding a category that covers a list, or any time you want the link hiding beneath a group of words.
 
 Runs two methods in parallel — fast set intersection and deeper best-first graph traversal — then merges and ranks every candidate by its strongest connection.
 
@@ -78,7 +78,7 @@ All thresholds are configurable. Good starting points:
 
 | Parameter | Default | What it does |
 |-----------|---------|--------------|
-| `--vocab` | 50,000 | Dictionary size. 50k covers all normal Codenames clues. |
+| `--vocab` | 50,000 | Dictionary size. 50k covers most common English words. |
 | `--top-k` | 150 | Neighbors per word. Higher = more creative leaps, more noise. |
 | `max_depth` | 2 | Graph traversal depth. 2 is usually enough; 3 for desperate cases. |
 | `max_nodes` | 500 | Safety valve on traversal. Prevents runaway searches. |
