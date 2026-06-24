@@ -327,7 +327,7 @@ class WordGraph:
 
     # ─── Search: Set Intersection (Fast Mode) ───────────────────────────
 
-    def find_clue_intersection(
+    def find_connections_intersection(
         self,
         target_words: list[str],
         avoid_words: list[str] = None,
@@ -335,7 +335,7 @@ class WordGraph:
         result_limit: int = DEFAULT_RESULT_LIMIT,
     ) -> list[tuple[str, float]]:
         """
-        Find clue words by intersecting neighbor lists.
+        Find connecting words by intersecting neighbor lists.
         Uses progressive widening: starts with top-50, widens to top-N.
         Scores by minimum similarity across all targets (weakest link).
         """
@@ -399,7 +399,7 @@ class WordGraph:
 
     # ─── Search: Best-First Traversal (Deep Mode) ───────────────────────
 
-    def find_clue_traversal(
+    def find_connections_traversal(
         self,
         target_words: list[str],
         avoid_words: list[str] = None,
@@ -410,7 +410,7 @@ class WordGraph:
         result_limit: int = DEFAULT_RESULT_LIMIT,
     ) -> list[dict]:
         """
-        Find clue words via best-first graph traversal.
+        Find connecting words via best-first graph traversal.
         Walks the graph from each target word independently, using
         embedding similarity as heuristic, then intersects reachable sets.
         """
@@ -499,27 +499,27 @@ class WordGraph:
 
     # ─── Combined Search ────────────────────────────────────────────────
 
-    def find_clues(
+    def find_connections(
         self,
         target_words: list[str],
         avoid_words: list[str] = None,
         result_limit: int = DEFAULT_RESULT_LIMIT,
     ) -> dict:
         """
-        Find clue words by running BOTH intersection and traversal,
+        Find connecting words by running BOTH intersection and traversal,
         then merging and ranking all candidates together.
         The strongest connection wins regardless of which method found it.
         """
         start = time.time()
 
         # Run both methods
-        intersection_results = self.find_clue_intersection(
+        intersection_results = self.find_connections_intersection(
             target_words, avoid_words,
             top_n=self.top_k,
             result_limit=result_limit * 2,
         )
 
-        traversal_results = self.find_clue_traversal(
+        traversal_results = self.find_connections_traversal(
             target_words, avoid_words,
             result_limit=result_limit * 2,
         )
@@ -608,7 +608,7 @@ if __name__ == "__main__":
     build_cmd.add_argument("--output", default=DEFAULT_GRAPH_DIR, help="Output directory")
 
     # Search command
-    search_cmd = sub.add_parser("search", help="Find clues for target words")
+    search_cmd = sub.add_parser("search", help="Find words that connect the inputs")
     search_cmd.add_argument("targets", nargs="+", help="Words to connect")
     search_cmd.add_argument("--graph", default=DEFAULT_GRAPH_DIR, help="Graph directory")
     search_cmd.add_argument("--avoid", nargs="*", help="Words to avoid")
@@ -631,7 +631,7 @@ if __name__ == "__main__":
 
     elif args.command == "search":
         g = ensure_graph(args.graph)
-        result = g.find_clues(args.targets, avoid_words=args.avoid, result_limit=args.limit)
+        result = g.find_connections(args.targets, avoid_words=args.avoid, result_limit=args.limit)
 
         print(f"\nTargets: {result['targets']}")
         print(f"Method: {result['method']}")

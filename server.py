@@ -8,7 +8,7 @@ Auto-downloads GloVe and builds the graph on first run if needed.
 
 Endpoints:
   GET  /                → Serves the HTML UI
-  GET  /api/search      → Search for clues (params: targets, avoid)
+  GET  /api/search      → Find connecting words (params: targets, avoid)
   GET  /api/neighbors   → Get neighbors of a word (params: word, n)
   GET  /api/similarity  → Get similarity between two words (params: a, b)
   GET  /api/stats       → Graph stats (vocab size, etc.)
@@ -80,7 +80,7 @@ class SolverHandler(SimpleHTTPRequestHandler):
             self.json_response({"error": "Need at least 2 target words"}, 400)
             return
 
-        result = graph.find_clues(targets, avoid_words=avoid or None, result_limit=limit)
+        result = graph.find_connections(targets, avoid_words=avoid or None, result_limit=limit)
         self.json_response(result)
 
     def handle_neighbors(self, params):

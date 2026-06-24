@@ -281,7 +281,7 @@
   .path-arrow { color: var(--text-muted); }
   .path-word { color: var(--text); }
   .path-word.target { color: var(--tag-target-text); }
-  .path-word.clue { color: var(--green); }
+  .path-word.connection { color: var(--green); }
 
   .method-badge {
     font-size: 10px;
@@ -425,7 +425,7 @@
       </div>
     </div>
     <div class="controls">
-      <button class="search-btn" id="search-btn" onclick="runSearch()">find clues</button>
+      <button class="search-btn" id="search-btn" onclick="runSearch()">find connections</button>
       <span class="status" id="status"></span>
     </div>
   </div>
@@ -439,7 +439,7 @@
   </div>
 
   <div class="empty-state" id="empty-state">
-    Enter 2 or more target words and hit <kbd>find clues</kbd><br>
+    Enter 2 or more words and hit <kbd>find connections</kbd><br>
     Etymon will find the hidden root that connects them.
   </div>
 
@@ -537,7 +537,7 @@
     empty.style.display = 'none';
     section.style.display = 'block';
     document.getElementById('results-title').innerHTML =
-      `Clues for <strong>${data.targets.join(' + ')}</strong>`;
+      `Connections for <strong>${data.targets.join(' + ')}</strong>`;
     document.getElementById('results-meta').innerHTML =
       `<span class="method-badge ${data.method}">${data.method}</span> ${data.elapsed_ms}ms`;
     setStatus('');
@@ -553,7 +553,7 @@
             path.map((w, j) => {
               let cls = 'path-word';
               if (j === 0) cls += ' target';
-              if (j === path.length - 1) cls += ' clue';
+              if (j === path.length - 1) cls += ' connection';
               return `<span class="${cls}">${w}</span>` +
                 (j < path.length - 1 ? '<span class="path-arrow">→</span>' : '');
             }).join('') +

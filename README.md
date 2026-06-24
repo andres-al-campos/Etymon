@@ -122,7 +122,7 @@ python graph.py build ~/downloads/glove.6B.300d.txt
 │                                                        │
 │  → Candidates from both are merged and ranked by       │
 │    strongest connection (weakest-link score). The      │
-│    best clue wins regardless of which method found it. │
+│    best word wins regardless of which method found it. │
 └────────────────────────────────────────────────────────┘
 ```
 
