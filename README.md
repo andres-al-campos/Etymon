@@ -20,7 +20,7 @@ First run will download GloVe embeddings (~822 MB), extract the 300d file, and b
 
 ## Screenshot
 
-![Etymon UI](docs/screenshot.png)
+![Etymon UI](web-ui.png)
 
 *The browser UI: enter a few words, get the words that connect them.*
 
