@@ -18,22 +18,76 @@ python server.py
 
 First run will download GloVe embeddings (~822 MB), extract the 300d file, and build the neighbor graph (~2 min). Subsequent runs load the pre-built graph in seconds.
 
+## Screenshot
+
+![Etymon UI](docs/screenshot.png)
+
+*The browser UI: enter a few words, get the words that connect them.*
+
 ### Command line usage
 
+**Find the words that connect a set of words** (auto-builds the graph if needed):
+
+```console
+$ python graph.py search cat lion
+
+Targets: ['cat', 'lion']
+Method: both
+Time: 1ms
+
+Results:
+  dog                  0.565  [traversal]
+    cat: cat → dog
+    lion: lion → bear → dog
+  cats                 0.558  [traversal]
+    cat: cat → cats
+    lion: lion → leopard → cats
+  elephant             0.515  [traversal]
+    cat: cat → monkey → elephant
+    lion: lion → elephant
+  ...
+```
+
+Each result shows the connecting word, its score (the weakest of its links, so higher means it sits close to *every* input), which method found it, and the path the traversal walked from each input.
+
+**Exclude words you don't want near the answer** with `--avoid`:
+
+```console
+$ python graph.py search cat lion tiger --avoid king
+
+Targets: ['cat', 'lion', 'tiger']
+Method: both
+Time: 2ms
+
+Results:
+  cats                 0.475  [traversal]
+  elephant             0.474  [traversal]
+  leopard              0.459  [both]
+  ...
+```
+
+**Explore a single word's nearest neighbors:**
+
+```console
+$ python graph.py neighbors engine --n 50
+
+Top 50 neighbors of 'engine':
+  engines              0.881
+  cylinder             0.591
+  diesel               0.589
+  horsepower           0.577
+  powered              0.567
+  turbine              0.555
+  ...
+```
+
+**Build with custom settings, or point at an existing GloVe file:**
+
 ```bash
-# Find clues connecting words (auto-builds graph if needed)
-python graph.py search cat lion
-
-# Find clues for 3 words, avoiding "king"
-python graph.py search cat lion tiger --avoid king
-
-# Explore a word's neighbors
-python graph.py neighbors engine --n 50
-
-# Manually build with custom settings
+# Larger vocabulary, more neighbors per word
 python graph.py build --vocab 75000 --top-k 200
 
-# Or point to an existing GloVe file
+# Use a GloVe file you already have
 python graph.py build ~/downloads/glove.6B.300d.txt
 ```
 
