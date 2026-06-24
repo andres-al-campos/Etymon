@@ -611,7 +611,8 @@ if __name__ == "__main__":
     search_cmd = sub.add_parser("search", help="Find words that connect the inputs")
     search_cmd.add_argument("targets", nargs="+", help="Words to connect")
     search_cmd.add_argument("--graph", default=DEFAULT_GRAPH_DIR, help="Graph directory")
-    search_cmd.add_argument("--avoid", nargs="*", help="Words to avoid")
+    search_cmd.add_argument("--avoid", nargs="*",
+                            help="Words to exclude from the results (won't be returned as answers)")
     search_cmd.add_argument("--limit", type=int, default=DEFAULT_RESULT_LIMIT, help="Max results")
 
     # Neighbors command (for exploration)

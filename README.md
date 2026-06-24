@@ -50,7 +50,7 @@ Results:
 
 Each result shows the connecting word, its score (the weakest of its links, so higher means it sits close to *every* input), which method found it, and the path the traversal walked from each input.
 
-**Exclude words you don't want near the answer** with `--avoid`:
+**Exclude specific words from the answers with `--avoid`** — any word you list here won't be returned as a result (the connecting words still come from the same search; the listed words are just filtered out):
 
 ```console
 $ python graph.py search cat lion tiger --avoid king
