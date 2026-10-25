@@ -8,6 +8,8 @@ Give it a set of words and it surfaces the strongest shared association across a
 
 Runs two methods in parallel — fast set intersection and deeper best-first graph traversal — then merges and ranks every candidate by its strongest connection.
 
+![Etymon finding the words that connect spring, summer and winter, with the path to each](docs/demo.webp)
+
 ## Quick Start
 
 ```bash
@@ -17,12 +19,6 @@ python server.py
 ```
 
 First run will download GloVe embeddings (~822 MB), extract the 300d file, and build the neighbor graph (~2 min). Subsequent runs load the pre-built graph in seconds.
-
-## Screenshot
-
-![Etymon UI](web-ui.png)
-
-*The browser UI: enter a few words, get the words that connect them.*
 
 ### Command line usage
 
