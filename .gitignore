@@ -14,3 +14,7 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Process, not product: mockups and per-quest plans stay on disk, off the remote
+designs/
+plans/
